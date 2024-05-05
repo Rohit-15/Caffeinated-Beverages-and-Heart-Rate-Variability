@@ -1,0 +1,195 @@
+---
+title: "III Assignment 1"
+author: "Team Heart and Brains"
+date: "05/12/2023"
+output: html_document
+---
+
+# Installing the packages
+
+```{r}
+
+library(dplyr)
+library(psych)
+library(tidyr)
+library(readxl)
+library(lubridate)
+
+```
+
+# Reading the data file
+
+```{r}
+
+# Read the CSV file "Exp_Data_updated.csv" into a data frame named df_exp.
+df_exp <- read.csv("Exp_Data_updated.csv")
+
+# Display the first few rows of the data frame df_exp.
+head(df_exp)
+
+```
+
+# Testing normality
+
+```{r}
+
+# Organizing the dataframe
+Group <- df_exp$Group
+Before <- df_exp$Before
+After <- df_exp$After
+Diff <- df_exp$Difference
+
+# Anderson-Darling test for normality on the 'Before' column
+ad_test_before <- nortest::ad.test(df_exp$Before)
+ad_p_value_before <- ad_test_before$p.value
+
+# Comment: Anderson-Darling test for normality on 'Before' data
+# Results: A = 0.29037, p-value = 0.6059
+# Interpretation: The p-value (0.6059) is greater than the 5% significance level.
+# Therefore, based on the Anderson-Darling test, we do not have sufficient evidence to reject the null hypothesis of normality for the 'Before' column.
+
+# Anderson-Darling test for normality on the 'After' column
+ad_test_after <- nortest::ad.test(df_exp$After)
+ad_p_value_after <- ad_test_after$p.value
+
+# Comment: Anderson-Darling test for normality on 'After' data
+# Results: A = 0.31892, p-value = 0.5311
+# Interpretation: The p-value (0.5311) is greater than the 5% significance level.
+# Therefore, based on the Anderson-Darling test, we do not have sufficient evidence to reject the null hypothesis of normality for the 'After' column.
+
+```
+
+# Constant variance test
+
+```{r}
+
+# Running Bartlett's test to check for homogeneity of variances
+bartlett_result <- bartlett.test(Difference ~ Group, data = df_exp)
+
+# Comment: Bartlett's test for homogeneity of variances
+# Results: Bartlett's K-squared = 33.091, df = 3, p-value = 3.082e-07
+# Interpretation: The p-value (3.082e-07 or approximately 0.0000003082) is less than the chosen significance level.
+# This indicates that there is enough evidence to reject the null hypothesis of equal variances. Therefore, the variances of the "Difference" variable are significantly different across the groups specified in the "Group" column.
+
+# Since the variances are significantly different, we need to run Welch's ANOVA as a robust alternative to traditional ANOVA.
+
+```
+
+# ANOVA
+
+```{r}
+
+# Running Welch's ANOVA to compare means across groups with unequal variances
+welch_anova_result <- oneway.test(Difference ~ Group, data = df_exp, var.equal = FALSE)
+
+# Comment: Welch's ANOVA for comparing means across groups
+# Results: F = 150.4, num df = 3.000, denom df = 63.863, p-value < 2.2e-16
+# Interpretation: The p-value (< 2.2e-16) is extremely small, indicating strong evidence against the null hypothesis of equal means across groups for the "Difference" variable.
+# Therefore, we can reject the null hypothesis and conclude that at least one group mean is different from the others in terms of the "Difference" variable.
+
+# Post-hoc tests or pairwise comparisons can be conducted to identify which specific groups differ from each other.
+
+```
+
+# Identifying where the differences lie
+
+```{r}
+
+# Tukey's test for pairwise comparisons of group means
+tukey_result <- TukeyHSD(aov(Difference ~ Group, data = df_exp))
+
+# Comment and insights: Tukey's test for pairwise comparisons of group means
+# Results: The results are in agreement with previous tests. G3 and G4 significantly differ from G1, G2, and each other, while G2 and G1 do not significantly differ.
+
+# Print the result
+print(tukey_result)
+
+# Additional insights based on the Tukey's test results:
+# G3-G1, G4-G1, G3-G2, G4-G2, and G4-G3 all have adjusted p-values less than 0.05, indicating significant differences between these pairs.
+# G2-G1 does not have a significant difference (p adj > 0.05).
+
+```
+
+# Insights from Tukey's test:
+
+## Tukey's Test:
+Tukey's test also adjusts for multiple comparisons and provides confidence intervals for the differences.
+
+G2 vs. G1: p-adj = 0.926 (not significant)
+G3 vs. G1: p-adj = 0.0000055 (highly significant)
+G4 vs. G1: p-adj < 2e-16 (highly significant)
+G3 vs. G2: p-adj = 0.0000003 (highly significant)
+G4 vs. G2: p-adj < 2e-16 (highly significant)
+G4 vs. G3: p-adj < 2e-16 (highly significant)
+
+These results are in agreement with the previous tests. G3 and G4 significantly differ from G1, G2, and each other, while G2 and G1 do not significantly differ.
+
+In summary, there are significant differences in the "Difference" variable among the groups, and the specific differences are highlighted by the post-hoc tests. It appears that G3 and G4 exhibit significant differences compared to G1 and G2.
+
+# Running t-test on G1 and G3 treatment group:
+
+```{r}
+
+# Filter data for G1 group
+g1_data <- subset(df_exp, Group == "G1")
+
+# Perform t-test
+t_test_result1 <- t.test(g1_data$Difference)
+
+# Filter data for G2 group
+g2_data <- subset(df_exp, Group == "G3")
+
+# Perform t-test
+t_test_result2 <- t.test(g2_data$Difference)
+
+# Print the result
+print(t_test_result1)
+print(t_test_result2)
+
+```
+## Interpretation for G1:
+
+The t-statistic of 17.05 is large, indicating a significant difference between the sample mean and the hypothesized population mean (0).
+The extremely small p-value (< 2.2e-16) suggests strong evidence against the null hypothesis, supporting the alternative hypothesis that the true mean is not equal to 0.
+The 95% confidence interval (5.364811, 6.822689) does not contain 0, reinforcing the conclusion of a significant difference.
+The sample mean (6.09375) represents the estimated mean difference for "g1_data."
+
+## Interpretation for G3:
+
+Similar to "g1_data," the t-statistic (15.817) is large, indicating a significant difference between the sample mean and the hypothesized population mean (0).
+The p-value is extremely small (< 2.2e-16), providing strong evidence against the null hypothesis in favor of the alternative hypothesis.
+The 95% confidence interval (7.812252, 10.125248) does not contain 0, supporting the conclusion of a significant difference.
+The sample mean (8.96875) represents the estimated mean difference for "g2_data."
+
+In summary, both "g1_data" and "g2_data" show strong evidence that the true mean difference is not equal to 0, based on the small p-values and non-overlapping confidence intervals.
+
+# Measuring ATE for each treatment group
+
+```{r}
+
+# Create separate data frames for each group
+group1 <- subset(df_exp, Group == "G1")
+group2 <- subset(df_exp, Group == "G2")
+group3 <- subset(df_exp, Group == "G3")
+group4 <- subset(df_exp, Group == "G4")
+
+# Calculate ATE for each group
+ate_group1 <- mean(group1$After - group1$Before)
+ate_group2 <- mean(group2$After - group2$Before)
+ate_group3 <- mean(group3$After - group3$Before)
+ate_group4 <- mean(group4$After - group4$Before)
+
+# Create a dataframe to store ATE results
+ate_results <- data.frame(
+  Group = c("G1", "G2", "G3", "G4"),
+  ATE = c(ate_group1, ate_group2, ate_group3, ate_group4)
+)
+
+# Display the dataframe with ATE results
+print(ate_results)
+
+```
+
+We can see that, ATE is highest for the G3 group (Pre-workout supplement) i.e. 9.00, followed by the G1 group (coffee) i.e. 6.09, and lastly G2 (energy drink) i.e. 5.65. Our control group (water) has the lowest ATE of 0.21. 
+
+# THE END
